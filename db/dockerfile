@@ -1,0 +1,13 @@
+FROM golang:latest
+
+#作業場所（/app）を作成
+WORKDIR /app
+
+COPY . .
+
+#/app の中で main.go をビルドして 'server' という実行ファイルを作成
+RUN go build -o server main.go
+
+EXPOSE 8080
+
+CMD ["./server"]
