@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt" // 追加
 	"log"
 	"net/http"
 	"os"
@@ -29,9 +30,16 @@ func main() {
 	// ルーティング
 	http.HandleFunc("/user", userController.Handler)
 
-	log.Println("Listening on :8080...")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	addr := fmt.Sprintf(":%s", port)
+	log.Printf("Listening on %s...", addr)
+
 	go func() {
-		if err := http.ListenAndServe(":8080", nil); err != nil {
+		if err := http.ListenAndServe(addr, nil); err != nil {
 			log.Fatal(err)
 		}
 	}()

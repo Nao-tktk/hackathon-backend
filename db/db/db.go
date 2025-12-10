@@ -18,6 +18,14 @@ func NewDB() (*sql.DB, error) {
 		return nil, fmt.Errorf("env MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE must be set")
 	}
 
-	dsn := fmt.Sprintf("%s:%s@%s/%s", user, pwd, mysqlHost, Database)
+	var dsn string
+	if len(mysqlHost) > 0 && mysqlHost[0] == '/' {
+		// 【本番用】 Unixドメインソケット接続 (Cloud Run)
+		dsn = fmt.Sprintf("%s:%s@unix(%s)/%s?parseTime=true", user, pwd, mysqlHost, Database)
+	} else {
+		// 【ローカル用】 TCP接続
+		dsn = fmt.Sprintf("%s:%s@tcp(%s:3306)/%s?parseTime=true", user, pwd, mysqlHost, Database)
+	}
+
 	return sql.Open("mysql", dsn)
 }
