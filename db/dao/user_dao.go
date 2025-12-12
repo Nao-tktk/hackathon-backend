@@ -14,7 +14,7 @@ func NewUserDao(db *sql.DB) *UserDao {
 }
 
 func (d *UserDao) FindByName(name string) ([]model.User, error) {
-	rows, err := d.db.Query("SELECT id, name, age FROM user WHERE name = ?", name)
+	rows, err := d.db.Query("SELECT id, name, password FROM users WHERE name = ?", name)
 	if err != nil {
 		return nil, err
 	}
@@ -23,7 +23,7 @@ func (d *UserDao) FindByName(name string) ([]model.User, error) {
 	var users []model.User
 	for rows.Next() {
 		var u model.User
-		if err := rows.Scan(&u.ID, &u.Name, &u.Age); err != nil {
+		if err := rows.Scan(&u.ID, &u.Name, &u.Password); err != nil {
 			return nil, err
 		}
 		users = append(users, u)
@@ -31,15 +31,28 @@ func (d *UserDao) FindByName(name string) ([]model.User, error) {
 	return users, nil
 }
 
-func (d *UserDao) Insert(user *model.User) error {
+func (d *UserDao) Insert(user *model.User) (int, error) {
 	tx, err := d.db.Begin()
 	if err != nil {
-		return err
+		return 0, err
 	}
-	_, err = tx.Exec("INSERT INTO user (id, name, age) VALUES (?, ?, ?)", user.ID, user.Name, user.Age)
+	
+	result, err := tx.Exec("INSERT INTO users (name, password) VALUES (?, ?)", user.Name, user.Password)
+
 	if err != nil {
 		tx.Rollback()
-		return err
+		return 0, err
 	}
-	return tx.Commit()
+
+	id64, err := result.LastInsertId()
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+
+	return int(id64), nil
 }

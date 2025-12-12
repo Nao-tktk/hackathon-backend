@@ -27,8 +27,18 @@ func main() {
 	userUsecase := usecase.NewUserUsecase(userDao)
 	userController := controller.NewUserController(userUsecase)
 
+	itemDao := dao.NewItemDao(dbConn)
+	itemUsecase := usecase.NewItemUsecase(itemDao)
+	itemController := controller.NewItemController(itemUsecase)
+
+	txDao := dao.NewTransactionDao(dbConn)
+	txUsecase := usecase.NewTransactionUsecase(txDao)
+	txController := controller.NewTransactionController(txUsecase)
+
 	// ルーティング
 	http.HandleFunc("/user", userController.Handler)
+	http.HandleFunc("/items", itemController.Handler)
+	http.HandleFunc("/purchace", txController.Handler)
 
 	port := os.Getenv("PORT")
 	if port == "" {

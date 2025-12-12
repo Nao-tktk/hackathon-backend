@@ -6,43 +6,46 @@ import (
 	"net/http"
 )
 
-type UserController struct {
-	Usecase *usecase.UserUsecase
+type ItemController struct {
+	Usecase *usecase.ItemUsecase
 }
 
-func NewUserController(u *usecase.UserUsecase) *UserController {
-	return &UserController{Usecase: u}
+func NewItemController(u *usecase.ItemUsecase) *ItemController {
+	return &ItemController{Usecase: u}
 }
 
-func (c *UserController) Handler(w http.ResponseWriter, r *http.Request) {
+func (c *ItemController) Handler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
+
 	switch r.Method {
 	case http.MethodGet:
-		name := r.URL.Query().Get("name")
-		users, err := c.Usecase.SearchUser(name)
+		// 一覧取得
+		items, err := c.Usecase.GetItems()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(users)
+		json.NewEncoder(w).Encode(items)
 
 	case http.MethodPost:
-		var req usecase.RegisterUserReq
+		// 商品出品
+		var req usecase.CreateItemReq
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid json", http.StatusBadRequest)
 			return
 		}
-		id, err := c.Usecase.RegisterUser(req)
+
+		id, err := c.Usecase.CreateItem(req)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

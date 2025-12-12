@@ -8,7 +8,7 @@ import (
 type MockRepo struct{}
 
 func (m *MockRepo) FindByName(name string) ([]model.User, error) { return nil, nil }
-func (m *MockRepo) Insert(user *model.User) error                { return nil }
+func (m *MockRepo) Insert(user *model.User) (int, error)         { return 1, nil }
 
 func TestUserUsecase_validateRegisterRequest(t *testing.T) {
 	u := NewUserUsecase(&MockRepo{})
@@ -17,11 +17,10 @@ func TestUserUsecase_validateRegisterRequest(t *testing.T) {
 		req     RegisterUserReq
 		wantErr bool
 	}{
-		{"正常", RegisterUserReq{Name: "Taro", Age: 25}, false},
-		{"名前空", RegisterUserReq{Name: "", Age: 25}, true},
-		{"名前長すぎ", RegisterUserReq{Name: "123456789012345678901234567890123456789012345678901", Age: 25}, true},
-		{"年齢若すぎ", RegisterUserReq{Name: "Jiro", Age: 19}, true},
-		{"年齢高すぎ", RegisterUserReq{Name: "Saburo", Age: 81}, true},
+		{"正常", RegisterUserReq{Name: "Taro", Password: "password"}, false},
+		{"名前空", RegisterUserReq{Name: "", Password: "password"}, true},
+		{"名前長すぎ", RegisterUserReq{Name: "123456789012345678901234567890123456789012345678901", Password: "password"}, true},
+		{"パスワード短すぎ", RegisterUserReq{Name: "Taro", Password: "01"}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
