@@ -22,6 +22,31 @@ func main() {
 	}
 	defer dbConn.Close()
 
+	//以下調整用
+	categorySQL := `
+    INSERT IGNORE INTO categories (id, name) VALUES 
+    (1, '本・雑誌'),
+    (2, '家電・スマホ'),
+    (3, 'ファッション');
+    `
+	if _, err := dbConn.Exec(categorySQL); err != nil {
+		log.Printf("カテゴリー追加エラー(無視可): %v", err)
+	} else {
+		log.Println("カテゴリーデータの準備完了")
+	}
+
+	// 2. テストユーザー (ID=1)
+	userSQL := `
+    INSERT IGNORE INTO users (id, name, password, created_at) VALUES 
+    (1, 'テスト太郎', 'pass1234', NOW());
+    `
+	if _, err := dbConn.Exec(userSQL); err != nil {
+		log.Printf("ユーザー追加エラー(無視可): %v", err)
+	} else {
+		log.Println("テストユーザー(ID=1)の準備完了")
+	}
+	////////////////
+
 	// 組み立て (DI)
 	userDao := dao.NewUserDao(dbConn)
 	userUsecase := usecase.NewUserUsecase(userDao)
@@ -39,37 +64,6 @@ func main() {
 	http.HandleFunc("/user", userController.Handler)
 	http.HandleFunc("/items", itemController.Handler)
 	http.HandleFunc("/purchace", txController.Handler)
-	http.HandleFunc("/db-check", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-
-		// 1. そもそも繋がっているか (PING)
-		if err := dbConn.Ping(); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, `{"status": "NG", "message": "DB接続自体が失敗しています: %v"}`, err)
-			return
-		}
-
-		// 2. テーブルは何があるか (SHOW TABLES)
-		rows, err := dbConn.Query("SHOW TABLES")
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, `{"status": "NG", "message": "接続できたけどテーブル一覧が見れません: %v"}`, err)
-			return
-		}
-		defer rows.Close()
-
-		var tables []string
-		for rows.Next() {
-			var t string
-			if err := rows.Scan(&t); err == nil {
-				tables = append(tables, t)
-			}
-		}
-
-		// 結果を表示
-		fmt.Fprintf(w, `{"status": "OK", "message": "接続成功", "tables_found": %q}`, tables)
-	})
-	// ▲▲▲▲▲ 追加ここまで ▲▲▲▲▲
 
 	port := os.Getenv("PORT")
 	if port == "" {
