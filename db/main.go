@@ -39,6 +39,37 @@ func main() {
 	http.HandleFunc("/user", userController.Handler)
 	http.HandleFunc("/items", itemController.Handler)
 	http.HandleFunc("/purchace", txController.Handler)
+	http.HandleFunc("/db-check", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		// 1. そもそも繋がっているか (PING)
+		if err := dbConn.Ping(); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, `{"status": "NG", "message": "DB接続自体が失敗しています: %v"}`, err)
+			return
+		}
+
+		// 2. テーブルは何があるか (SHOW TABLES)
+		rows, err := dbConn.Query("SHOW TABLES")
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, `{"status": "NG", "message": "接続できたけどテーブル一覧が見れません: %v"}`, err)
+			return
+		}
+		defer rows.Close()
+
+		var tables []string
+		for rows.Next() {
+			var t string
+			if err := rows.Scan(&t); err == nil {
+				tables = append(tables, t)
+			}
+		}
+
+		// 結果を表示
+		fmt.Fprintf(w, `{"status": "OK", "message": "接続成功", "tables_found": %q}`, tables)
+	})
+	// ▲▲▲▲▲ 追加ここまで ▲▲▲▲▲
 
 	port := os.Getenv("PORT")
 	if port == "" {
