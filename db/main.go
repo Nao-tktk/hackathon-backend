@@ -63,7 +63,7 @@ func main() {
 	// ルーティング
 	http.HandleFunc("/user", userController.Handler)
 	http.HandleFunc("/items", itemController.Handler)
-	http.HandleFunc("/purchace", txController.Handler)
+	http.HandleFunc("/purchase", txController.Handler)
 
 	port := os.Getenv("PORT")
 	if port == "" {
