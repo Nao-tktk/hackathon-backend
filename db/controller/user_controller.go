@@ -49,3 +49,37 @@ func (c *UserController) Handler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]int{"id": id})
 	}
 }
+
+func (c *UserController) LoginHandler(w http.ResponseWriter, r *http.Request) {
+	// CORS設定
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req usecase.LoginReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	id, err := c.Usecase.Login(req)
+	if err != nil {
+		// ログイン失敗 (401 Unauthorized)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	// 成功したらIDを返す
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]int{"id": id})
+}

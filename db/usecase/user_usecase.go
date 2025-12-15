@@ -55,3 +55,29 @@ func (u *UserUsecase) validateRegisterRequest(req RegisterUserReq) error {
 	}
 	return nil
 }
+
+type LoginReq struct {
+	Name     string `json:"name"`
+	Password string `json:"password"`
+}
+
+// Login: 名前で検索し、パスワードが一致するか確認する
+func (u *UserUsecase) Login(req LoginReq) (int, error) {
+	// 1. 名前でユーザーを探す
+	users, err := u.Repo.FindByName(req.Name)
+	if err != nil {
+		return 0, err
+	}
+	if len(users) == 0 {
+		return 0, fmt.Errorf("user not found")
+	}
+
+	// 2. パスワード照合 (ハッカソン用: 平文比較)
+	// FindByNameはリストを返すので、先頭のユーザーを使います
+	targetUser := users[0]
+	if targetUser.Password != req.Password {
+		return 0, fmt.Errorf("invalid password")
+	}
+
+	return targetUser.ID, nil
+}
