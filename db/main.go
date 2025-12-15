@@ -65,12 +65,12 @@ func main() {
 	messageController := controller.NewMessageController(messageUsecase)
 
 	// ルーティング
-	http.HandleFunc("/user", userController.Handler)
-	http.HandleFunc("/register", userController.Handler)
-	http.HandleFunc("/login", userController.LoginHandler)
-	http.HandleFunc("/items", itemController.Handler)
-	http.HandleFunc("/purchase", txController.Handler)
-	http.HandleFunc("/messages", messageController.HandleMessages)
+	http.HandleFunc("/api/user", userController.Handler)
+	http.HandleFunc("/api/register", userController.Handler)
+	http.HandleFunc("/api/login", userController.LoginHandler)
+	http.HandleFunc("/api/items", itemController.Handler)
+	http.HandleFunc("/api/purchase", txController.Handler)
+	http.HandleFunc("/api/messages", messageController.HandleMessages)
 
 	port := os.Getenv("PORT")
 	if port == "" {
