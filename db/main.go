@@ -60,12 +60,17 @@ func main() {
 	txUsecase := usecase.NewTransactionUsecase(txDao)
 	txController := controller.NewTransactionController(txUsecase)
 
+	messageDao := dao.NewMessageDao(dbConn)
+	messageUsecase := usecase.NewMessageUsecase(messageDao)
+	messageController := controller.NewMessageController(messageUsecase)
+
 	// ルーティング
 	http.HandleFunc("/user", userController.Handler)
 	http.HandleFunc("/register", userController.Handler)
 	http.HandleFunc("/login", userController.LoginHandler)
 	http.HandleFunc("/items", itemController.Handler)
 	http.HandleFunc("/purchase", txController.Handler)
+	http.HandleFunc("/messages", messageController.HandleMessages)
 
 	port := os.Getenv("PORT")
 	if port == "" {
