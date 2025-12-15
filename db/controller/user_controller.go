@@ -50,6 +50,44 @@ func (c *UserController) Handler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (c *UserController) HandleRegister(w http.ResponseWriter, r *http.Request) {
+	// 1. CORS設定 (フロントエンドからのアクセスを許可)
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	// プリフライトリクエスト(OPTIONS)への対応
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// 2. POSTメソッド以外は拒否
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// 3. リクエストボディ(JSON)を読み取る
+	var req usecase.RegisterUserReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
+		return
+	}
+
+	// 4. ユースケースを呼び出して登録処理を実行
+	id, err := c.Usecase.RegisterUser(req)
+	if err != nil {
+		// エラー内容をそのまま返す（"invalid name" や "user already exists" など）
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 5. 成功したら登録されたIDを返す
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]int{"id": id})
+}
+
 func (c *UserController) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	// CORS設定
 	w.Header().Set("Access-Control-Allow-Origin", "*")

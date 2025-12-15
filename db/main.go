@@ -62,6 +62,7 @@ func main() {
 
 	// ルーティング
 	http.HandleFunc("/user", userController.Handler)
+	http.HandleFunc("/register", userController.Handler)
 	http.HandleFunc("/login", userController.LoginHandler)
 	http.HandleFunc("/items", itemController.Handler)
 	http.HandleFunc("/purchase", txController.Handler)
