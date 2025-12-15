@@ -39,3 +39,7 @@ func (u *MessageUsecase) SendMessage(req SendMessageReq) error {
 func (u *MessageUsecase) GetHistory(itemID, user1, user2 int) ([]model.Message, error) {
 	return u.Dao.GetConversation(itemID, user1, user2)
 }
+
+func (u *MessageUsecase) GetNotifications(userID int) ([]model.Notification, error) {
+	return u.Dao.GetNotifications(userID)
+}

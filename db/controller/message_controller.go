@@ -68,3 +68,34 @@ func (c *MessageController) HandleMessages(w http.ResponseWriter, r *http.Reques
 		return
 	}
 }
+func (c *MessageController) HandleNotifications(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// クエリパラメータ ?user_id=1 を取得
+	userIDStr := r.URL.Query().Get("user_id")
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil || userID == 0 {
+		http.Error(w, "user_id is required", http.StatusBadRequest)
+		return
+	}
+
+	notifs, err := c.Usecase.GetNotifications(userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if notifs == nil {
+		notifs = []model.Notification{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(notifs)
+}

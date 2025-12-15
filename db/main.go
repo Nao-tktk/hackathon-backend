@@ -71,6 +71,7 @@ func main() {
 	http.HandleFunc("/api/items", itemController.Handler)
 	http.HandleFunc("/api/purchase", txController.Handler)
 	http.HandleFunc("/api/messages", messageController.HandleMessages)
+	http.HandleFunc("/api/notifications", messageController.HandleNotifications)
 
 	port := os.Getenv("PORT")
 	if port == "" {

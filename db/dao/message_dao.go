@@ -47,3 +47,30 @@ func (dao *MessageDao) GetConversation(itemID, user1, user2 int) ([]model.Messag
 	}
 	return messages, nil
 }
+
+func (dao *MessageDao) GetNotifications(userID int) ([]model.Notification, error) {
+	query := `
+        SELECT 
+            m.id, m.item_id, i.name, m.sender_id, u.name, m.content, m.created_at
+        FROM messages m
+        JOIN items i ON m.item_id = i.id
+        JOIN users u ON m.sender_id = u.id
+        WHERE m.receiver_id = ?
+        ORDER BY m.created_at DESC
+    `
+	rows, err := dao.db.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var notifs []model.Notification
+	for rows.Next() {
+		var n model.Notification
+		if err := rows.Scan(&n.ID, &n.ItemID, &n.ItemName, &n.SenderID, &n.SenderName, &n.Content, &n.CreatedAt); err != nil {
+			return nil, err
+		}
+		notifs = append(notifs, n)
+	}
+	return notifs, nil
+}
