@@ -22,8 +22,8 @@ func (u *UserUsecase) SearchUser(name string) ([]model.User, error) {
 }
 
 type RegisterUserReq struct {
-	Name     string
-	Password string
+	Name     string `json:"name"`
+	Password string `json:"password"`
 }
 
 func (u *UserUsecase) RegisterUser(req RegisterUserReq) (int, error) {
