@@ -66,6 +66,8 @@ func main() {
 
 	helpController := controller.NewHelpController()
 
+	geminiController := controller.NewGeminiController()
+
 	// ルーティング
 	http.HandleFunc("/api/user", userController.Handler)
 	http.HandleFunc("/api/register", userController.Handler)
@@ -75,6 +77,7 @@ func main() {
 	http.HandleFunc("/api/messages", messageController.HandleMessages)
 	http.HandleFunc("/api/notifications", messageController.HandleNotifications)
 	http.HandleFunc("/api/help", helpController.HandleHelp)
+	http.HandleFunc("/api/generate-description", geminiController.HandleGenerateDescription)
 
 	port := os.Getenv("PORT")
 	if port == "" {
