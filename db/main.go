@@ -64,6 +64,8 @@ func main() {
 	messageUsecase := usecase.NewMessageUsecase(messageDao)
 	messageController := controller.NewMessageController(messageUsecase)
 
+	helpController := controller.NewHelpController()
+
 	// ルーティング
 	http.HandleFunc("/api/user", userController.Handler)
 	http.HandleFunc("/api/register", userController.Handler)
@@ -72,6 +74,7 @@ func main() {
 	http.HandleFunc("/api/purchase", txController.Handler)
 	http.HandleFunc("/api/messages", messageController.HandleMessages)
 	http.HandleFunc("/api/notifications", messageController.HandleNotifications)
+	http.HandleFunc("/api/help", helpController.HandleHelp)
 
 	port := os.Getenv("PORT")
 	if port == "" {
