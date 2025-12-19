@@ -139,7 +139,7 @@ func searchSample(projectID, location, engineID, searchQuery string) (string, er
 				IgnoreNonSummarySeekingQuery: true,
 				ModelPromptSpec: ModelPromptSpec{
 					// ★ここだけ変更: アプリ用の指示に変えています
-					Preamble: "あなたはフリマアプリのガイドです。検索結果に基づいて、ユーザーの質問に日本語で回答してください。",
+					Preamble: "あなたはフリマアプリのガイドです。検索結果に基づいて、ユーザーの質問に日本語で回答してください。回答の確度が低かったとしても、なるべく「関連する情報が見つかりませんでした」という回答はしないでください",
 				},
 				ModelSpec: ModelSpec{
 					Version: "stable",
