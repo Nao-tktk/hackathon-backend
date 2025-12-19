@@ -12,13 +12,15 @@ import (
 	"google.golang.org/api/transport"
 )
 
-// ▼ URLに含まれる情報
+// ▼ ここをご自身のIDに書き換えてください
 const (
 	ProjectID = "term8-naoto-takaku"                  // プロジェクトID
 	Location  = "global"                              // ロケーション
 	EngineID  = "hackathon-manual-help_1766104642390" // エンジンID
 )
 
+// ※注意: カリキュラムでは default_config ですが、最近の汎用検索アプリは default_search の場合が多いです。
+// もし 404 エラーが出る場合は、末尾の default_search を default_config に戻してみてください。
 const apiEndpoint = "https://discoveryengine.googleapis.com/v1beta/projects/%s/locations/%s/collections/default_collection/engines/%s/servingConfigs/default_search:search"
 
 type HelpController struct{}
@@ -27,25 +29,53 @@ func NewHelpController() *HelpController {
 	return &HelpController{}
 }
 
-// ▼▼▼ 変更点1: 構造体に ModelPromptSpec を追加 ▼▼▼
+// ▼▼▼ ここから下はカリキュラムの構造体定義 (そのまま) ▼▼▼
+
 type SearchRequest struct {
-	Query             string            `json:"query"`
-	PageSize          int               `json:"pageSize"`
-	ContentSearchSpec ContentSearchSpec `json:"contentSearchSpec"`
-}
-type ContentSearchSpec struct {
-	SummarySpec SummarySpec `json:"summarySpec"`
-}
-type SummarySpec struct {
-	SummaryResultCount int             `json:"summaryResultCount"`
-	IncludeCitations   bool            `json:"includeCitations"`
-	ModelPromptSpec    ModelPromptSpec `json:"modelPromptSpec"` // 追加
-}
-type ModelPromptSpec struct {
-	Preamble string `json:"preamble"` // 追加: AIへの指示文
+	Query               string              `json:"query"`
+	PageSize            int                 `json:"pageSize"`
+	ContentSearchSpec   ContentSearchSpec   `json:"contentSearchSpec"`
+	QueryExpansionSpec  QueryExpansionSpec  `json:"queryExpansionSpec"`
+	SpellCorrectionSpec SpellCorrectionSpec `json:"spellCorrectionSpec"`
 }
 
-// レスポンスの型定義
+type ContentSearchSpec struct {
+	SnippetSpec SnippetSpec `json:"snippetSpec"`
+	SummarySpec SummarySpec `json:"summarySpec"`
+}
+
+type SnippetSpec struct {
+	ReturnSnippet bool `json:"returnSnippet"`
+}
+
+type SummarySpec struct {
+	SummaryResultCount           int             `json:"summaryResultCount"`
+	IncludeCitations             bool            `json:"includeCitations"`
+	IgnoreAdversarialQuery       bool            `json:"ignoreAdversarialQuery"`
+	IgnoreNonSummarySeekingQuery bool            `json:"ignoreNonSummarySeekingQuery"`
+	ModelPromptSpec              ModelPromptSpec `json:"modelPromptSpec"`
+	ModelSpec                    ModelSpec       `json:"modelSpec"`
+}
+
+type ModelPromptSpec struct {
+	Preamble string `json:"preamble"`
+}
+
+type ModelSpec struct {
+	Version string `json:"version"`
+}
+
+type QueryExpansionSpec struct {
+	Condition string `json:"condition"`
+}
+
+type SpellCorrectionSpec struct {
+	Mode string `json:"mode"`
+}
+
+// ▲▲▲ カリキュラムの定義ここまで ▲▲▲
+
+// ▼▼▼ 追加: レスポンスを受け取るための構造体 (これが無いと回答を取り出せないので追加) ▼▼▼
 type SearchResponse struct {
 	Summary SummaryResponse `json:"summary"`
 }
@@ -53,11 +83,14 @@ type SummaryResponse struct {
 	SummaryText string `json:"summaryText"`
 }
 
+// フロントエンドからの入力を受け取る用
 type HelpReq struct {
 	Query string `json:"query"`
 }
 
+// ハンドラー関数（Webサーバー用）
 func (c *HelpController) HandleHelp(w http.ResponseWriter, r *http.Request) {
+	// CORS設定
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
@@ -67,71 +100,100 @@ func (c *HelpController) HandleHelp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 1. フロントエンドから質問を受け取る
 	var req HelpReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
-	answer, err := searchWithREST(req.Query)
+	// 2. カリキュラムのロジックで検索実行
+	answer, err := searchSample(ProjectID, Location, EngineID, req.Query)
 	if err != nil {
 		fmt.Printf("Vertex AI Error: %v\n", err)
 		http.Error(w, "AI processing failed", http.StatusInternalServerError)
 		return
 	}
 
+	// 3. 結果をフロントエンドに返す
 	response := map[string]string{"answer": answer}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
 
-func searchWithREST(queryText string) (string, error) {
-	url := fmt.Sprintf(apiEndpoint, ProjectID, Location, EngineID)
+// カリキュラムの searchSample を少し改造（文字列を返すように変更）
+func searchSample(projectID, location, engineID, searchQuery string) (string, error) {
+	url := fmt.Sprintf(apiEndpoint, projectID, location, engineID)
 
-	// ▼▼▼ 変更点2: Preamble（指示）を追加してAIを積極化させる ▼▼▼
 	requestBody := SearchRequest{
-		Query:    queryText,
-		PageSize: 5,
+		Query:    searchQuery,
+		PageSize: 10,
 		ContentSearchSpec: ContentSearchSpec{
+			SnippetSpec: SnippetSpec{
+				ReturnSnippet: true,
+			},
 			SummarySpec: SummarySpec{
-				SummaryResultCount: 5,
-				IncludeCitations:   false,
+				SummaryResultCount:           5,
+				IncludeCitations:             true,
+				IgnoreAdversarialQuery:       true,
+				IgnoreNonSummarySeekingQuery: true,
 				ModelPromptSpec: ModelPromptSpec{
-					// ここで「検索結果を使って日本語で答えて」と明示します
-					Preamble: "あなたはフリマアプリの親切なガイドです。提供された検索結果に基づいて、ユーザーの質問に日本語で回答してください。",
+					// ★ここだけ変更: アプリ用の指示に変えています
+					Preamble: "あなたはフリマアプリのガイドです。検索結果に基づいて、ユーザーの質問に日本語で回答してください。",
+				},
+				ModelSpec: ModelSpec{
+					Version: "stable",
 				},
 			},
 		},
+		QueryExpansionSpec: QueryExpansionSpec{
+			Condition: "AUTO",
+		},
+		SpellCorrectionSpec: SpellCorrectionSpec{
+			Mode: "AUTO",
+		},
 	}
-	jsonData, _ := json.Marshal(requestBody)
+
+	jsonData, err := json.Marshal(requestBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request: %v", err)
+	}
 
 	ctx := context.Background()
+	// カリキュラム通り transport を使用
 	client, _, err := transport.NewHTTPClient(ctx, option.WithScopes("https://www.googleapis.com/auth/cloud-platform"))
 	if err != nil {
-		return "", fmt.Errorf("client creation failed: %v", err)
+		return "", fmt.Errorf("failed to create HTTP client: %v", err)
 	}
 
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %v", err)
+	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("request failed: %v", err)
+		return "", fmt.Errorf("failed to send request: %v", err)
 	}
 	defer resp.Body.Close()
 
-	body, _ := ioutil.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("API Error: %s", body)
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %v", err)
 	}
 
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("non-200 response: %v\n%s", resp.StatusCode, body)
+	}
+
+	// ★追加部分: JSONから回答だけを取り出す処理
 	var searchResp SearchResponse
 	if err := json.Unmarshal(body, &searchResp); err != nil {
 		return "", fmt.Errorf("JSON parse failed: %v", err)
 	}
 
 	if searchResp.Summary.SummaryText == "" {
-		// 本当に空だった場合のフォールバック
 		return "申し訳ありません、関連する情報が見つかりませんでした。", nil
 	}
 
