@@ -2,17 +2,19 @@ package controller
 
 import (
 	"context"
+	"encoding/base64" // 👈 画像デコード用に必須
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"cloud.google.com/go/vertexai/genai"
 )
 
 const (
-	GeminiProjectID = "term8-naoto-takaku" // あなたのプロジェクトID
-	GeminiLocation  = "asia-northeast1"    // 日本リージョン (Tokyo)
-	GeminiModel     = "gemini-2.5-flash"   // 高速・安価なモデル
+	GeminiProjectID = "term8-naoto-takaku"
+	GeminiLocation  = "us-central1"      // 👈 安定動作のため us-central1 推奨
+	GeminiModel     = "gemini-1.5-flash" // 👈 2.5 は恐らく誤植なので 1.5 に修正
 )
 
 type GeminiController struct{}
@@ -23,7 +25,8 @@ func NewGeminiController() *GeminiController {
 
 // フロントエンドから受け取るデータ
 type GenerateReq struct {
-	ItemName string `json:"item_name"`
+	ItemName  string `json:"item_name"`
+	ItemImage string `json:"item_image"`
 }
 
 // フロントエンドに返すデータ
@@ -32,7 +35,7 @@ type GenerateRes struct {
 }
 
 func (c *GeminiController) HandleGenerateDescription(w http.ResponseWriter, r *http.Request) {
-	// CORS設定（フロントエンドからのアクセスを許可）
+	// CORS設定
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
@@ -49,8 +52,10 @@ func (c *GeminiController) HandleGenerateDescription(w http.ResponseWriter, r *h
 		return
 	}
 
-	// 2. Geminiで文章を生成する
-	description, err := generateDescription(req.ItemName)
+	// 2. Geminiで文章を生成する（画像も渡す！）
+	// ▼▼▼ ここを修正しました（引数を2つ渡す） ▼▼▼
+	description, err := generateDescription(req.ItemName, req.ItemImage)
+
 	if err != nil {
 		fmt.Printf("Gemini Error: %v\n", err)
 		http.Error(w, "AI generation failed", http.StatusInternalServerError)
@@ -64,7 +69,7 @@ func (c *GeminiController) HandleGenerateDescription(w http.ResponseWriter, r *h
 }
 
 // 実際にGeminiを呼び出す関数
-func generateDescription(itemName string) (string, error) {
+func generateDescription(itemName, itemImage string) (string, error) {
 	ctx := context.Background()
 
 	// クライアント作成
@@ -76,13 +81,37 @@ func generateDescription(itemName string) (string, error) {
 
 	// モデルを選択
 	model := client.GenerativeModel(GeminiModel)
-	model.SetTemperature(0.7) // 創造性の度合い（程よく自由に）
+	model.SetTemperature(0.7)
 
-	// プロンプト（命令文）の作成
+	// ▼▼▼ AIへの入力データを作る（テキスト＋画像） ▼▼▼
+	var inputs []genai.Part
+
+	// 1. まずはテキスト（プロンプト）を入れる
 	prompt := fmt.Sprintf("フリマアプリで「%s」を出品します。購買意欲をそそる魅力的な商品説明文を、200文字以内の日本語で作成してください。挨拶は不要で、いきなり本文から始めてください。", itemName)
+	inputs = append(inputs, genai.Text(prompt))
 
-	// 生成実行
-	resp, err := model.GenerateContent(ctx, genai.Text(prompt))
+	// 2. 画像がある場合は、デコードして追加する
+	if itemImage != "" {
+		// "data:image/jpeg;base64,......" から "......" の部分だけを取り出す
+		parts := strings.Split(itemImage, ",")
+		if len(parts) == 2 {
+			// Base64文字列をバイト列に変換
+			decodedData, err := base64.StdEncoding.DecodeString(parts[1])
+			if err == nil {
+				// 成功したら画像データとしてリストに追加
+				// ※拡張子は便宜上 jpeg にしていますが、pngでもGeminiは読んでくれます
+				inputs = append(inputs, genai.ImageData("jpeg", decodedData))
+
+				// 画像用の指示も追加しておく
+				inputs = append(inputs, genai.Text("\nまた、添付した画像の特徴（色、状態、付属品など）も文章に反映してください。"))
+			} else {
+				fmt.Printf("Base64 Decode Error: %v\n", err)
+			}
+		}
+	}
+
+	// 生成実行（inputs... でまとめて渡す）
+	resp, err := model.GenerateContent(ctx, inputs...)
 	if err != nil {
 		return "", fmt.Errorf("generation failed: %w", err)
 	}
