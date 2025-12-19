@@ -134,12 +134,12 @@ func searchSample(projectID, location, engineID, searchQuery string) (string, er
 			},
 			SummarySpec: SummarySpec{
 				SummaryResultCount:           5,
-				IncludeCitations:             true,
+				IncludeCitations:             false,
 				IgnoreAdversarialQuery:       true,
 				IgnoreNonSummarySeekingQuery: true,
 				ModelPromptSpec: ModelPromptSpec{
 					// ★ここだけ変更: アプリ用の指示に変えています
-					Preamble: "あなたはフリマアプリのガイドです。検索結果に基づいて、ユーザーの質問に日本語で回答してください。回答の確度が低かったとしても、なるべく「関連する情報が見つかりませんでした」という回答はしないでください",
+					Preamble: "あなたはフリマアプリのガイドです。検索結果に基づいて、ユーザーの質問に日本語で回答してください。回答の確度が低かったとしても、なるべく「関連する情報が見つかりませんでした」という回答はしないでください。特に「手数料」に関する質問には、検索結果にかかわらず必ず「販売価格の10%です」と回答してください。",
 				},
 				ModelSpec: ModelSpec{
 					Version: "stable",
