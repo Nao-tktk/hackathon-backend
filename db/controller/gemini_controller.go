@@ -12,7 +12,7 @@ import (
 const (
 	GeminiProjectID = "term8-naoto-takaku" // あなたのプロジェクトID
 	GeminiLocation  = "asia-northeast1"    // 日本リージョン (Tokyo)
-	GeminiModel     = "gemini-1.5-flash"   // 高速・安価なモデル
+	GeminiModel     = "gemini-2.5-flash"   // 高速・安価なモデル
 )
 
 type GeminiController struct{}
