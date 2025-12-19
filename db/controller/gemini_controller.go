@@ -13,8 +13,8 @@ import (
 
 const (
 	GeminiProjectID = "term8-naoto-takaku"
-	GeminiLocation  = "us-central1"      // 👈 安定動作のため us-central1 推奨
-	GeminiModel     = "gemini-1.5-flash" // 👈 2.5 は恐らく誤植なので 1.5 に修正
+	GeminiLocation  = "asia-northeast1"
+	GeminiModel     = "gemini-2.5-flash"
 )
 
 type GeminiController struct{}
