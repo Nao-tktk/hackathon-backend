@@ -14,7 +14,6 @@ func NewItemDao(db *sql.DB) *ItemDao {
 	return &ItemDao{db: db}
 }
 
-// GetItems: 商品一覧取得
 func (dao *ItemDao) GetItems() ([]model.Item, error) {
 	query := `
 		SELECT 
