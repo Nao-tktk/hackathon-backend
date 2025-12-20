@@ -125,3 +125,96 @@ func generateDescription(itemName, itemImage string) (string, error) {
 
 	return "説明文の生成に失敗しました。", nil
 }
+
+type EstimateRes struct {
+	Price  int    `json:"price"`
+	Reason string `json:"reason"`
+}
+
+func (c *GeminiController) HandleEstimatePrice(w http.ResponseWriter, r *http.Request) {
+	// CORS設定
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	var req GenerateReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	// AIに査定させる
+	price, reason, err := estimatePrice(req.ItemName, req.ItemImage)
+	if err != nil {
+		fmt.Printf("Estimate Error: %v\n", err)
+		http.Error(w, "AI estimation failed", http.StatusInternalServerError)
+		return
+	}
+
+	res := EstimateRes{Price: price, Reason: reason}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(res)
+}
+
+// ▼▼▼ 追加: Gemini査定ロジック
+func estimatePrice(itemName, itemImage string) (int, string, error) {
+	ctx := context.Background()
+	client, err := genai.NewClient(ctx, GeminiProjectID, GeminiLocation)
+	if err != nil {
+		return 0, "", err
+	}
+	defer client.Close()
+
+	model := client.GenerativeModel(GeminiModel)
+	model.SetTemperature(0.5) // 少し堅実に考えさせる
+
+	// JSONで返事させるためのプロンプト
+	promptText := fmt.Sprintf(`あなたはプロの鑑定士です。フリマアプリで「%s」を出品します。
+添付画像と商品名から、日本円での適切な販売価格を推定してください。
+回答は以下のJSON形式のみで出力してください。余計な文字（Markdown記法など）は一切含めないでください。
+
+{"price": 数値, "reason": "短い理由"}
+
+例:
+{"price": 1500, "reason": "使用感が見られますが、人気ブランドのため"}`, itemName)
+
+	var inputs []genai.Part
+	inputs = append(inputs, genai.Text(promptText))
+
+	if itemImage != "" {
+		parts := strings.Split(itemImage, ",")
+		if len(parts) == 2 {
+			decodedData, err := base64.StdEncoding.DecodeString(parts[1])
+			if err == nil {
+				inputs = append(inputs, genai.ImageData("jpeg", decodedData))
+			}
+		}
+	}
+
+	resp, err := model.GenerateContent(ctx, inputs...)
+	if err != nil {
+		return 0, "", err
+	}
+
+	if len(resp.Candidates) > 0 && len(resp.Candidates[0].Content.Parts) > 0 {
+		if txt, ok := resp.Candidates[0].Content.Parts[0].(genai.Text); ok {
+			// 受け取った文字列（JSON）をパースする
+			rawJSON := string(txt)
+			// たまに ```json ... ``` で囲ってくるので削除する
+			rawJSON = strings.ReplaceAll(rawJSON, "```json", "")
+			rawJSON = strings.ReplaceAll(rawJSON, "```", "")
+
+			var result EstimateRes
+			if err := json.Unmarshal([]byte(rawJSON), &result); err == nil {
+				return result.Price, result.Reason, nil
+			}
+		}
+	}
+
+	return 0, "", fmt.Errorf("failed to parse AI response")
+}

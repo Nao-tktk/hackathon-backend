@@ -79,6 +79,7 @@ func main() {
 	http.HandleFunc("/api/help", helpController.HandleHelp)
 	http.HandleFunc("/api/generate-description", geminiController.HandleGenerateDescription)
 	http.HandleFunc("/api/social-login", userController.HandleSocialLogin)
+	http.HandleFunc("/api/estimate-price", geminiController.HandleEstimatePrice)
 
 	port := os.Getenv("PORT")
 	if port == "" {
