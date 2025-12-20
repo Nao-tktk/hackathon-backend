@@ -78,6 +78,7 @@ func main() {
 	http.HandleFunc("/api/notifications", messageController.HandleNotifications)
 	http.HandleFunc("/api/help", helpController.HandleHelp)
 	http.HandleFunc("/api/generate-description", geminiController.HandleGenerateDescription)
+	http.HandleFunc("/api/social-login", userController.HandleSocialLogin)
 
 	port := os.Getenv("PORT")
 	if port == "" {

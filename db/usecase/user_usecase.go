@@ -81,3 +81,40 @@ func (u *UserUsecase) Login(req LoginReq) (int, error) {
 
 	return targetUser.ID, nil
 }
+
+// ▼▼▼ 追加: ソーシャルログイン用リクエスト型 ▼▼▼
+type SocialLoginReq struct {
+	Email string `json:"email"`
+	Name  string `json:"name"`
+}
+
+// ▼▼▼ 追加: ソーシャルログインのロジック ▼▼▼
+func (u *UserUsecase) SocialLogin(req SocialLoginReq) (int, string, error) {
+	// 1. そのメールアドレス(Nameカラムに保存)のユーザーがいるか確認
+	users, err := u.Repo.FindByName(req.Email)
+	if err != nil {
+		return 0, "", err
+	}
+
+	// 2. 既にいるなら、そのユーザー情報を返す
+	if len(users) > 0 {
+		return users[0].ID, users[0].Name, nil
+	}
+
+	// 3. いないなら、新規作成する
+	// ハッカソン仕様: Nameカラムにメアドを入れ、パスワードはダミーを入れる
+	newUser := &model.User{
+		Name:     req.Email,
+		Password: "google_login", // ソーシャルログイン用のダミーパスワード
+	}
+
+	id, err := u.Repo.Insert(newUser)
+	if err != nil {
+		return 0, "", err
+	}
+
+	// 表示名はリクエストのName(Googleの名前)を返したいが、
+	// DB上はEmailで管理しているので、ここでは便宜上EmailをNameとして扱うか、
+	// フロントの表示用に req.Name を返す設計にします。
+	return id, req.Name, nil
+}
